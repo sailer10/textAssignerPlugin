@@ -1,0 +1,26 @@
+{
+  "name": "요소 할당 도구",
+  "description": "요소 값을 자동으로 할당해줍니다.",
+  "version": "1.0.2",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "plugin_main.html"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "64": "icon64.png",
+    "128": "icon128.png"
+  },
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"]
+    }
+  ]
+}
