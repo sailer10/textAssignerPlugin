@@ -1,7 +1,7 @@
 {
   "name": "요소 할당 도구",
   "description": "요소 값을 자동으로 할당해줍니다.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "manifest_version": 3,
   "action": {
     "default_popup": "main.html"
@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["js/welcome.js", "js/background.js"]
+      "js": ["js/welcome.js"]
     }
   ]
 }

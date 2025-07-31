@@ -7,7 +7,8 @@
 <body>
     <h1>요소 값 할당 도구</h1>
 * 운영에서 왠만하면 사용 금지
-    <div class="section-header justify-between">설정 관리
+    <div class="section-header justify-between">
+        설정 관리
         <button id="developer_mode_button">개발자 모드</button>
     </div>
     <div>
@@ -27,9 +28,16 @@
     <input type="file" id="import_file_input" style="display: none;" accept=".json">
     <button class="assignAllBtn" id="assign_all_button_top">모든 요소 할당</button>
 
-    <div class="section-header">요소 할당</div>
+    <div class="section-header">
+        요소 할당
+    </div>
+    <div>
+        <button id="add_element_top_button">요소 추가</button>
+    </div>
     <div id="elements_wrapper"></div>
-    <button id="add_element_button">요소 추가</button>
-    <button class="assignAllBtn" id="assign_all_button">모든 요소 할당</button>
+    <div class="bottom-buttons-container">
+        <button class="assignAllBtn" id="assign_all_button">모든 요소 할당</button>
+        <button id="add_element_bottom_button">요소 추가</button>
+    </div>
 </body>
 </html>

@@ -8,12 +8,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const importSettingsButton = document.getElementById('import_settings_button');
     const importFileInput = document.getElementById('import_file_input');
     const elementsWrapper = document.getElementById('elements_wrapper');
-    const addElementButton = document.getElementById('add_element_button');
+    const addElementButtonTop = document.getElementById('add_element_top_button');
+    const addElementButtonBottom = document.getElementById('add_element_bottom_button');
     const assignAllButton = document.getElementById('assign_all_button');
     const assignAllButtonTop = document.getElementById('assign_all_button_top');
 
     let currentElements = [];
     let isDeveloperMode = false;
+
+    const createNewElement = (elementData = {}) => {
+        // 이전 isRandom 속성과의 호환성을 위해 assignType을 결정
+        let assignType = 'value';
+        if (elementData.assignType) {
+            assignType = elementData.assignType;
+        } else if (elementData.isRandom === true) {
+            assignType = 'randomAssign';
+        }
+
+        return {
+            selectorType: elementData.selectorType || 'id',
+            selectorValue: elementData.selectorValue || '',
+            assignValue: elementData.assignValue || '',
+            assignType: assignType,
+            prefix: elementData.prefix || '',
+            randomLength: elementData.randomLength || '9',
+            randomType: elementData.randomType || 'alphanumeric',
+            postfix: elementData.postfix || '',
+            isActive: elementData.isActive !== false, // 기본값 true
+        };
+    };
 
     const generateRandomString = (length, type = 'alphanumeric') => {
         const chars = {
@@ -30,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getElementValue = (el) => {
-        if (el.isRandom) {
+        if (el.assignType === 'randomAssign') {
             const randomLength = parseInt(el.randomLength, 10) || 9;
             const randomString = generateRandomString(randomLength, el.randomType);
             return `${el.prefix || ''}${randomString}${el.postfix || ''}`;
@@ -40,9 +63,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const assignAllElements = () => {
         currentElements.forEach(el => {
-            const selector = getCombinedSelector(el.selectorType, el.selectorValue);
-            const assValue = getElementValue(el);
+            if (!el.isActive) return;
             
+            const selector = getCombinedSelector(el.selectorType, el.selectorValue);
+
+            if (el.assignType === 'randomSelect') {
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    chrome.scripting.executeScript({
+                        target: { tabId: tabs[0].id },
+                        func: (selector) => {
+                            const selectElement = document.querySelector(selector);
+                            if (selectElement && selectElement.tagName === 'SELECT') {
+                                const options = selectElement.options;
+                                if (options.length > 0) {
+                                    const randomIndex = Math.floor(Math.random() * options.length);
+                                    selectElement.value = options[randomIndex].value;
+                                    selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }
+                        },
+                        args: [selector]
+                    });
+                });
+                return;
+            }
+            
+            const assValue = getElementValue(el);
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 chrome.scripting.executeScript({
                     target: { tabId: tabs[0].id },
@@ -125,10 +171,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="display: flex; align-items: center;">
                     <label style="width: 100px; flex-shrink: 0;">할당할 값:</label>
                     <div class="assign-value-wrapper" style="display: contents;">
-                        <div class="normal-value-wrapper" style="display: ${elData.isRandom ? 'none' : 'block'}; width: 100%;">
+                        <div class="normal-value-wrapper" style="display: ${elData.assignType === 'value' ? 'block' : 'none'}; width: 100%;">
                             <input type="text" class="assign_value" placeholder="할당할 값" value="${elData.assignValue || ''}" style="width: 100%;">
                         </div>
-                        <div class="random-value-wrapper" style="display: ${elData.isRandom ? 'flex' : 'none'}; width: 100%; align-items: center;">
+                        <div class="random-select-text" style="display: ${elData.assignType === 'randomSelect' ? 'block' : 'none'}; width: 100%; padding: 8px 0;">
+                            option 랜덤 선택
+                        </div>
+                        <div class="random-value-wrapper" style="display: ${elData.assignType === 'randomAssign' ? 'flex' : 'none'}; width: 100%; align-items: center;">
                             <input type="text" class="random_prefix" placeholder="Prefix" value="${elData.prefix || ''}" style="flex: 1;">
                             <input type="number" class="random_length" placeholder="자릿수" value="${elData.randomLength || '9'}" style="flex: 2; width: 20px !important; margin: 0 5px;">
                             <select class="random_type" style="flex: 1; margin-right: 5px;">
@@ -140,13 +189,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 10px;">
-                    <label style="width: auto; margin-right: 5px;">
-                        랜덤 할당
-                        <input type="checkbox" class="is_random_checkbox" ${elData.isRandom ? 'checked' : ''}>
+                <div class="element-footer">
+                    <label>
+                        <input type="checkbox" class="is_active_checkbox" ${!elData.isActive ? 'checked' : ''}>
+                        비활성화
                     </label>
-                    <button class="assign_single_button">값 할당</button>
-                    <button class="remove_element_button">제거</button>
+                    <div class="button-group">
+                        <label><input type="radio" name="assign_type_${index}" class="assign_type_radio" value="value" ${elData.assignType === 'value' ? 'checked' : ''}> 값</label>
+                        <label><input type="radio" name="assign_type_${index}" class="assign_type_radio" value="randomSelect" ${elData.assignType === 'randomSelect' ? 'checked' : ''}> 랜덤선택</label>
+                        <label><input type="radio" name="assign_type_${index}" class="assign_type_radio" value="randomAssign" ${elData.assignType === 'randomAssign' ? 'checked' : ''}> 랜덤할당</label>
+                        <button class="assign_single_button">실행</button>
+                        <button class="remove_element_button">제거</button>
+                    </div>
                 </div>
             `;
 
@@ -155,13 +209,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const assignValueInput = container.querySelector('.assign_value');
             const selectorValueInput = container.querySelector('.selector_value');
             const selectorTypeInput = container.querySelector('.selector_type');
-            const isRandomCheckbox = container.querySelector('.is_random_checkbox');
+            
             const normalValueWrapper = container.querySelector('.normal-value-wrapper');
             const randomValueWrapper = container.querySelector('.random-value-wrapper');
+            const randomSelectText = container.querySelector('.random-select-text');
+
             const randomPrefixInput = container.querySelector('.random_prefix');
             const randomLengthInput = container.querySelector('.random_length');
             const randomTypeSelect = container.querySelector('.random_type');
             const randomPostfixInput = container.querySelector('.random_postfix');
+            const isActiveCheckbox = container.querySelector('.is_active_checkbox');
+
+            const setInputsDisabled = (disabled) => {
+                container.querySelectorAll('input[type="text"], input[type="number"], select, .assign_type_radio, .assign_single_button').forEach(input => {
+                    if (!input.classList.contains('is_active_checkbox') && !input.classList.contains('remove_element_button')) {
+                        input.disabled = disabled;
+                    }
+                });
+            };
+
+            setInputsDisabled(!elData.isActive);
+
+            isActiveCheckbox.addEventListener('change', (e) => {
+                currentElements[index].isActive = !e.target.checked;
+                setInputsDisabled(e.target.checked);
+            });
+
+            container.querySelectorAll('.assign_type_radio').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const assignType = e.target.value;
+                    currentElements[index].assignType = assignType;
+                    normalValueWrapper.style.display = assignType === 'value' ? 'block' : 'none';
+                    randomSelectText.style.display = assignType === 'randomSelect' ? 'block' : 'none';
+                    randomValueWrapper.style.display = assignType === 'randomAssign' ? 'flex' : 'none';
+                });
+            });
 
             assignValueInput.addEventListener('change', (e) => currentElements[index].assignValue = e.target.value);
             randomPrefixInput.addEventListener('change', (e) => currentElements[index].prefix = e.target.value);
@@ -169,12 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
             randomTypeSelect.addEventListener('change', (e) => currentElements[index].randomType = e.target.value);
             randomPostfixInput.addEventListener('change', (e) => currentElements[index].postfix = e.target.value);
 
-            isRandomCheckbox.addEventListener('change', (e) => {
-                currentElements[index].isRandom = e.target.checked;
-                normalValueWrapper.style.display = e.target.checked ? 'none' : 'block';
-                randomValueWrapper.style.display = e.target.checked ? 'flex' : 'none';
-            });
-            
             if (isDeveloperMode) {
                 selectorValueInput.addEventListener('change', (e) => {
                     const parsed = parseCombinedSelector(e.target.value);
@@ -193,7 +269,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const assignAction = () => {
                 const element = currentElements[index];
+                if (!element.isActive) return;
+
                 const selector = getCombinedSelector(element.selectorType, element.selectorValue);
+
+                if (element.assignType === 'randomSelect') {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        chrome.scripting.executeScript({
+                            target: { tabId: tabs[0].id },
+                            func: (selector) => {
+                                const selectElement = document.querySelector(selector);
+                                if (selectElement && selectElement.tagName === 'SELECT') {
+                                    const options = selectElement.options;
+                                    if (options.length > 0) {
+                                        const randomIndex = Math.floor(Math.random() * options.length);
+                                        selectElement.value = options[randomIndex].value;
+                                        selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }
+                                }
+                            },
+                            args: [selector]
+                        });
+                    });
+                    return;
+                }
+
                 const valueToAssign = getElementValue(element);
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     chrome.scripting.executeScript({
@@ -213,37 +313,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const processLoadedElements = (elements) => {
         return elements.map(el => {
-            const baseData = {
-                assignValue: el.assignValue,
-                isRandom: el.isRandom || false,
-                prefix: el.prefix || '',
-                randomLength: el.randomLength || '9',
-                randomType: el.randomType || 'alphanumeric',
-                postfix: el.postfix || ''
-            };
+            const newEl = createNewElement(el);
             if (el.selector) {
                 const parsed = parseCombinedSelector(el.selector);
-                return { ...baseData, ...parsed };
+                newEl.selectorType = parsed.selectorType;
+                newEl.selectorValue = parsed.selectorValue;
             }
-            return {
-                ...baseData,
-                selectorType: el.selectorType || 'id',
-                selectorValue: el.selectorValue || ''
-            };
+            return newEl;
         });
     };
 
-    const addElement = (elementData = {}) => {
-        currentElements.push({
-            selectorType: elementData.selectorType || 'id',
-            selectorValue: elementData.selectorValue || '',
-            assignValue: elementData.assignValue || '',
-            isRandom: elementData.isRandom || false,
-            prefix: elementData.prefix || '',
-            randomLength: elementData.randomLength || '9',
-            randomType: elementData.randomType || 'alphanumeric',
-            postfix: elementData.postfix || ''
-        });
+    const addElement = (elementData = {}, position = 'top') => {
+        const newElement = createNewElement(elementData);
+        if (position === 'top') {
+            currentElements.unshift(newElement);
+        } else {
+            currentElements.push(newElement);
+        }
         renderElements();
     };
 
@@ -270,8 +356,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else {
             settingTitleInput.value = '';
-            currentElements = [];
-            addElement();
+            currentElements = [createNewElement()];
+            renderElements();
         }
     });
 
@@ -285,11 +371,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const elementsToSave = currentElements.map(el => ({
             selector: getCombinedSelector(el.selectorType, el.selectorValue),
             assignValue: el.assignValue,
-            isRandom: el.isRandom,
+            assignType: el.assignType,
             prefix: el.prefix,
             randomLength: el.randomLength,
             randomType: el.randomType,
-            postfix: el.postfix
+            postfix: el.postfix,
+            isActive: el.isActive
         }));
 
         const newSetting = {
@@ -319,15 +406,22 @@ document.addEventListener('DOMContentLoaded', () => {
             delete settings[selectedTitle];
             chrome.storage.local.set({ settings: settings }, () => {
                 alert(`설정 '${selectedTitle}'이(가) 삭제되었습니다!`);
+                
+                const optionToRemove = settingsSelect.querySelector(`option[value="${selectedTitle}"]`);
+                if(optionToRemove) {
+                    optionToRemove.remove();
+                }
+
                 settingTitleInput.value = '';
-                currentElements = [];
-                addElement();
-                loadInitialState();
+                settingsSelect.value = '';
+                currentElements = [createNewElement()];
+                renderElements();
             });
         });
     });
 
-    addElementButton.addEventListener('click', () => addElement());
+    addElementButtonTop.addEventListener('click', () => addElement({}, 'top'));
+    addElementButtonBottom.addEventListener('click', () => addElement({}, 'bottom'));
 
     assignAllButton.addEventListener('click', assignAllElements);
     assignAllButtonTop.addEventListener('click', assignAllElements);
@@ -345,11 +439,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements: result.settings[title].elements.map(el => ({
                         selector: el.selector || getCombinedSelector(el.selectorType, el.selectorValue),
                         assignValue: el.assignValue,
-                        isRandom: el.isRandom,
+                        assignType: el.assignType,
                         prefix: el.prefix,
                         randomLength: el.randomLength,
                         randomType: el.randomType,
-                        postfix: el.postfix
+                        postfix: el.postfix,
+                        isActive: el.isActive
                     }))
                 };
             }
@@ -428,8 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingTitleInput.value = lastUsedSetting;
                 currentElements = processLoadedElements(settings[lastUsedSetting].elements);
             } else {
-                currentElements = [];
-                addElement();
+                currentElements = [createNewElement()];
             }
             renderElements();
         });
