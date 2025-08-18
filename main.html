@@ -2,42 +2,115 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="css/style.css"/>
-    <script src="js/main.js"></script>
 </head>
 <body>
-    <h1>요소 값 할당 도구</h1>
-* 운영에서 왠만하면 사용 금지
-    <div class="section-header justify-between">
-        설정 관리
-        <button id="developer_mode_button">개발자 모드</button>
+    <div class="tab-container">
+        <button id="tab_scenario_tool" class="tab-button active">테스트 시나리오 도구</button>
+        <button id="tab_add_button" class="tab-button">버튼 추가</button>
     </div>
-    <div>
-        <label for="settings_select">저장된 설정:</label>
-        <select id="settings_select">
-            <option value="">-- 새 설정 --</option>
-        </select>
-    </div>
-    <div>
-        <label for="setting_title">설정 제목:</label>
-        <input type="text" id="setting_title" placeholder="설정 이름을 입력하세요">
-    </div>
-    <button id="save_setting_button">설정 저장</button>
-    <button id="delete_setting_button">선택된 설정 삭제</button>
-    <button id="export_settings_button">설정 내보내기</button>
-    <button id="import_settings_button">설정 불러오기</button>
-    <input type="file" id="import_file_input" style="display: none;" accept=".json">
-    <button class="assignAllBtn" id="assign_all_button_top">모든 요소 할당</button>
 
-    <div class="section-header">
-        요소 할당
+    <!-- Tab Content: Test Scenario Tool -->
+    <div id="content_scenario_tool" class="tab-content active">
+        <h1>테스트 시나리오 도구</h1>
+
+        <!-- Scenario Management -->
+        <div class="section-header">
+            시나리오 관리
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="width: auto;">
+                <input type="checkbox" id="run_immediately_checkbox" style="width: auto; vertical-align: middle;" checked>
+                즉시 실행
+            </label>
+        </div>
+        <div id="scenarios_list_container" style="margin-top: 10px;"></div>
+        
+        <div>
+            <label for="setting_title" style="margin-top: 15px;">시나리오 제목:</label>
+            <input type="text" id="setting_title" placeholder="시나리오 이름을 입력하세요">
+        </div>
+        <button id="save_scenario_button">시나리오 저장</button>
+        <button id="export_scenario_button">JSON 내보내기</button>
+        <button id="import_scenario_button">JSON 가져오기</button>
+        <input type="file" id="import_file_input" style="display: none;" accept=".json">
+
+        <hr style="margin: 20px 0;">
+
+        <!-- Actions -->
+        <div class="section-header">
+            행동 목록
+        </div>
+        <button id="run_scenario_btn_top" style="width: 100%; margin-bottom: 15px;">시나리오 실행</button>
+        <div class="action-buttons-top button-group" style="margin-bottom: 15px;">
+            <div>
+                <button id="add_action_btn_top">행동 추가</button>
+                <button id="add_wait_btn_top">대기 추가</button>
+                <button id="add_function_btn_top">함수 추가</button>
+            </div>
+            <div>
+                <button id="clear_actions_btn" class="danger">행동목록 비우기</button>
+            </div>
+        </div>
+        <div id="actions_container"></div>
+
+        <!-- Add Action Buttons (Bottom) -->
+        <div class="action-buttons-bottom button-group" style="margin-top: 15px;">
+            <div>
+                <button id="add_action_btn_bottom">행동 추가</button>
+                <button id="add_wait_btn_bottom">대기 추가</button>
+                <button id="add_function_btn_bottom">함수 추가</button>
+            </div>
+            <div>
+                <button id="scroll_to_top_btn">위로 가기</button>
+            </div>
+        </div>
+
+        <hr style="margin: 20px 0;">
+
+        <!-- Footer -->
+        <div class="bottom-buttons-container">
+            <button id="run_scenario_btn_bottom" style="width: 100%; padding: 10px; font-size: 16px;">시나리오 실행</button>
+        </div>
     </div>
-    <div>
-        <button id="add_element_top_button">요소 추가</button>
+
+    <!-- Tab Content: Add Button -->
+    <div id="content_add_button" class="tab-content" style="display: none;">
+        <h1>버튼 추가</h1>
+
+        <div class="section-header">1. 대상 URL 입력</div>
+        <div id="url_inputs_container">
+            <div class="url-input-group">
+                <label>URL:</label>
+                <input type="text" class="url-input" placeholder="https://example.com">
+                <button class="remove-url-input-btn danger" style="display:none;">X</button>
+            </div>
+        </div>
+        <button id="add_url_input_field_btn" style="width:100%; margin-top: 10px;">URL 입력 추가</button>
+
+        <hr style="margin: 20px 0;">
+
+        <div class="section-header">2. 버튼 설정 및 추가</div>
+        <div id="button_settings_container">
+            <div class="button-setting-group">
+                <label>위치 (CSS 선택자):</label>
+                <input type="text" class="button-position-selector" placeholder="#id or .class">
+                <label>시나리오 선택:</label>
+                <select class="scenario-select-for-button"></select>
+                <button class="remove-button-setting-btn danger" style="display:none;">X</button>
+            </div>
+        </div>
+        <button id="add_button_setting_btn" style="width:100%; margin-top: 10px;">시나리오 버튼 설정 추가</button>
+        <div class="button-group" style="margin-top: 15px;">
+            <button id="add_button_manually" style="width: 48%;">현재 페이지에 즉시 추가</button>
+            <button id="save_mapping_button" style="width: 48%;">이 설정을 URL에 매핑 저장</button>
+        </div>
+
+        <hr style="margin: 20px 0;">
+
+        <div class="section-header">3. 저장된 매핑 목록</div>
+        <div id="url_list_container" style="margin-top: 10px;"></div>
     </div>
-    <div id="elements_wrapper"></div>
-    <div class="bottom-buttons-container">
-        <button class="assignAllBtn" id="assign_all_button">모든 요소 할당</button>
-        <button id="add_element_bottom_button">요소 추가</button>
-    </div>
+
+    <script src="js/main.js"></script>
 </body>
 </html>

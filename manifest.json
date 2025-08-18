@@ -1,7 +1,7 @@
 {
-  "name": "요소 할당 도구",
-  "description": "요소 값을 자동으로 할당해줍니다.",
-  "version": "1.0.3",
+  "name": "테스트 시나리오 도구",
+  "description": "테스트 시나리오 생성 및 실행, 요소 값 할당 기능을 제공하는 통합 도구입니다.",
+  "version": "2.0.0",
   "manifest_version": 3,
   "action": {
     "default_popup": "main.html"
@@ -15,12 +15,14 @@
   "permissions": [
     "scripting",
     "activeTab",
-    "storage"
+    "storage",
+    "tabs"
   ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["js/welcome.js"]
+      "js": ["js/act_scenario_content.js"],
+      "run_at": "document_idle"
     }
   ]
 }
