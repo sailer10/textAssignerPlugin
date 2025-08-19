@@ -152,21 +152,23 @@ const generateRandomString = (length, type) => {
 // --- Main execution on page load ---
 function applyButtonsForCurrentPage() {
     chrome.storage.local.get('buttonAdderMappings', (data) => {
-        if (!data.buttonAdderMappings) return;
+        if (!data.buttonAdderMappings || !Array.isArray(data.buttonAdderMappings)) return;
 
-        const mappings = data.buttonAdderMappings; // Now an array of mapping objects
+        const mappings = data.buttonAdderMappings;
         const currentUrl = window.location.href;
 
-        if (!!mappings && mappings.length > 0) {
-          mappings.forEach(mapping => {
-            // Check if the current URL starts with any of the URLs in this mapping's urls array
+        mappings.forEach(mapping => {
             const urlMatches = mapping.urls.some(mappedUrl => currentUrl.startsWith(mappedUrl));
             
             if (urlMatches) {
-                addScenarioButton(mapping.selector, mapping.scenarioTitle);
+                if (mapping.actionType === 'autoRun') {
+                    console.log(`[Scenario Tool] Auto-running scenario: ${mapping.scenarioTitle}`);
+                    runScenarioByName(mapping.scenarioTitle);
+                } else { // Default to 'addButton'
+                    addScenarioButton(mapping.selector, mapping.scenarioTitle);
+                }
             }
-          });
-        }
+        });
     });
 }
 

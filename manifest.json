@@ -1,7 +1,7 @@
 {
   "name": "테스트 시나리오 도구",
   "description": "테스트 시나리오 생성 및 실행, 요소 값 할당 기능을 제공하는 통합 도구입니다.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "manifest_version": 3,
   "action": {
     "default_popup": "main.html"

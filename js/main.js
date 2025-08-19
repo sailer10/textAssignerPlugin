@@ -118,17 +118,37 @@ document.addEventListener('DOMContentLoaded', () => {
     addUrlInputField();
 
     // --- Dynamic Button Setting Management ---
-    const addbuttonSettingField = (selectorValue = '', scenarioTitleValue = '') => {
+    const addbuttonSettingField = (selectorValue = '', scenarioTitleValue = '', actionTypeValue = 'addButton') => {
         const div = document.createElement('div');
         div.className = 'button-setting-group';
+        const uniqueId = `action_type_${Date.now()}_${Math.random()}`; // Unique name for radio buttons
         div.innerHTML = `
-            <label>위치 (CSS 선택자):</label>
-            <input type="text" class="button-position-selector" placeholder="#id or .class" value="${selectorValue}">
-            <label>시나리오 선택:</label>
-            <select class="scenario-select-for-button"></select>
+            <div class="action-type-radios">
+                <label><input type="radio" name="${uniqueId}" value="addButton" ${actionTypeValue === 'addButton' ? 'checked' : ''}> 버튼 추가</label>
+                <label><input type="radio" name="${uniqueId}" value="autoRun" ${actionTypeValue === 'autoRun' ? 'checked' : ''}> 자동 실행</label>
+            </div>
+            <div class="selector-group" style="display: ${actionTypeValue === 'addButton' ? 'flex' : 'none'};">
+                <label>CSS 선택자:</label>
+                <input type="text" class="button-position-selector" placeholder="#id or .class" value="${selectorValue}">
+            </div>
+            <div class="selector-group">
+                <label>시나리오 선택:</label>
+                <select class="scenario-select-for-button"></select>
+            </div>
             <button class="remove-button-setting-btn danger">X</button>
         `;
         buttonSettingsContainer.appendChild(div);
+
+        const selectorGroup = div.querySelector('.selector-group');
+        div.querySelectorAll(`input[name="${uniqueId}"]`).forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'addButton') {
+                    selectorGroup.style.display = 'flex';
+                } else {
+                    selectorGroup.style.display = 'none';
+                }
+            });
+        });
 
         const removeBtn = div.querySelector('.remove-button-setting-btn');
         removeBtn.addEventListener('click', () => {
@@ -137,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 alert('최소 하나의 시나리오 버튼 설정이 필요합니다.');
             }
+            updateRemoveButtonSettingsVisibility();
         });
         updateRemoveButtonSettingsVisibility();
 
@@ -156,10 +177,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const getAllButtonSettingValues = () => {
         const settings = [];
         buttonSettingsContainer.querySelectorAll('.button-setting-group').forEach(group => {
-            const selector = group.querySelector('.button-position-selector').value.trim();
+            const actionType = group.querySelector('input[name^="action_type_"]:checked').value;
+            const selectorInput = group.querySelector('.button-position-selector');
             const scenarioTitle = group.querySelector('.scenario-select-for-button').value;
-            if (selector && scenarioTitle) {
-                settings.push({ selector, scenarioTitle });
+            
+            let selector = null;
+            if (actionType === 'addButton') {
+                selector = selectorInput.value.trim();
+                if (!selector) return; // Skip if selector is required but empty
+            }
+
+            if (scenarioTitle) {
+                settings.push({ actionType, selector, scenarioTitle });
             }
         });
         return settings;
@@ -247,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let contentHTML = '';
 
             if (action.type === 'action') {
-                contentHTML += `<div><label>CSS 선택자:</label><input type="text" class="selector" placeholder="CSS 선택자" value="${action.selector || ''}"></div>`;
+                contentHTML += `<div class='selector-group'><label>CSS 선택자:</label><input type="text" class="selector" placeholder="CSS 선택자" value="${action.selector || ''}"></div>`;
                 if (action.eventType === 'input') {
                     contentHTML += `
                         <div class="assign-type-radios">
@@ -263,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (action.eventType === 'delay') {
                     contentHTML += `<div><label>지연 (ms):</label><input type="number" class="delay-ms" placeholder="밀리초" value="${action.ms || '1000'}"></div>`;
                 } else {
-                    contentHTML += `<div><label>CSS 선택자:</label><input type="text" class="selector" placeholder="CSS 선택자" value="${action.selector || ''}"></div>`;
+                    contentHTML += `<div class='selector-group'><label>CSS 선택자:</label><input type="text" class="selector" placeholder="CSS 선택자" value="${action.selector || ''}"></div>`;
                 }
             } else if (action.type === 'function') {
                 contentHTML += `<div><label>실행할 함수 코드:</label><textarea class="function-code" rows="4">${action.code || ''}</textarea></div>`;
@@ -286,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <input type="text" class="random_postfix" placeholder="Postfix" value="${action.postfix || ''}" style="flex:1;">
                     `;
                 } else if (action.assignType === 'randomSelect') {
-                    valueWrapper.innerHTML = `<input type="text" disabled value="Select의 Option이 랜덤 선택됩니다." />`;
+                    valueWrapper.innerHTML = `<input type="text" disabled value="<select>의 <option>이 랜덤 선택됩니다." />`;
                 } else if (action.assignType === 'totp') {
                     valueWrapper.innerHTML = `<input type="text" class="assign_value" placeholder="TOTP Secret Key" value="${action.assignValue || ''}">`;
                 } else { // 'value'
@@ -518,9 +547,14 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.scripting.executeScript(
                 { target: { tabId: tabs[0].id }, files: ['js/act_scenario_content.js'] },
                 () => {
-                    if (chrome.runtime.lastError) { console.error(chrome.runtime.lastError.message); alert('콘텐츠 스크립트를 주입할 수 없습니다. 페이지를 새로고침하고 다시 시도해주세요.'); return; }
+                    if (chrome.runtime.lastError) { 
+                        console.error(chrome.runtime.lastError.message); 
+                        alert('콘텐츠 스크립트를 주입할 수 없습니다. 페이지를 새로고침하고 다시 시도해주세요.'); 
+                        return; 
+                    }
                     chrome.tabs.sendMessage(tabs[0].id, { type: 'RUN_SCENARIO', scenario }, (response) => {
-                        if (chrome.runtime.lastError) console.error(chrome.runtime.lastError.message);
+                        if (chrome.runtime.lastError) 
+                            console.error(chrome.runtime.lastError.message);
                     });
                 }
             );
@@ -535,13 +569,15 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonAdderMappings.forEach((mapping, index) => {
             const item = document.createElement('div');
             item.className = 'url-mapping-item';
-            item.innerHTML = `
-                <span>
-                    <b>URLs:</b> ${mapping.urls.join(', ')}<br>
-                    <b>Selector:</b> ${mapping.selector}<br>
-                    <b>Scenario:</b> ${mapping.scenarioTitle}
-                </span>
-            `;
+            let detailsHTML = `<b>URLs:</b> ${mapping.urls.join(', ')}<br>`;
+            if (mapping.actionType === 'addButton') {
+                detailsHTML += `<b>Action:</b> 버튼 추가<br><b>Selector:</b> ${mapping.selector}<br>`;
+            } else {
+                detailsHTML += `<b>Action:</b> 자동 실행<br>`;
+            }
+            detailsHTML += `<b>Scenario:</b> ${mapping.scenarioTitle}`;
+
+            item.innerHTML = `<span>${detailsHTML}</span>`;
 
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = '삭제';
@@ -579,10 +615,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         chrome.storage.local.get('buttonAdderMappings', (data) => {
-            const currentMappings = data.buttonAdderMappings || [];
+            const currentMappings = Array.isArray(data.buttonAdderMappings) ? data.buttonAdderMappings : [];
 
             buttonSettings.forEach(setting => {
-                const newMapping = { urls, selector: setting.selector, scenarioTitle: setting.scenarioTitle };
+                const newMapping = {
+                    urls,
+                    actionType: setting.actionType,
+                    selector: setting.selector, // This will be null if not applicable
+                    scenarioTitle: setting.scenarioTitle
+                };
                 currentMappings.push(newMapping);
             });
 
@@ -590,27 +631,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('매핑이 저장되었습니다.');
                 buttonAdderMappings = currentMappings; // Update local variable
                 renderUrlList();
-                // Clear only setting inputs, keep URL inputs for next mapping
-                // Clear all but one URL input, or clear all if only one exists
+                // Clear inputs after saving
                 const urlInputs = urlInputsContainer.querySelectorAll('.url-input');
                 if (urlInputs.length > 1) {
                     Array.from(urlInputsContainer.children).slice(1).forEach(child => urlInputsContainer.removeChild(child));
-                    urlInputs[0].value = '';
-                } else if (urlInputs.length === 1) {
-                    urlInputs[0].value = '';
                 }
+                urlInputs[0].value = '';
                 updateRemoveButtonsVisibility();
 
-                // Clear all but one button setting input
                 const buttonSettingGroups = buttonSettingsContainer.querySelectorAll('.button-setting-group');
                 if (buttonSettingGroups.length > 1) {
                     Array.from(buttonSettingsContainer.children).slice(1).forEach(child => buttonSettingsContainer.removeChild(child));
-                    buttonSettingGroups[0].querySelector('.button-position-selector').value = '';
-                    populateScenarioDropdown(buttonSettingGroups[0].querySelector('.scenario-select-for-button'), '');
-                } else if (buttonSettingGroups.length === 1) {
-                    buttonSettingGroups[0].querySelector('.button-position-selector').value = '';
-                    populateScenarioDropdown(buttonSettingGroups[0].querySelector('.scenario-select-for-button'), '');
                 }
+                const firstGroup = buttonSettingGroups[0];
+                firstGroup.querySelector('.button-position-selector').value = '';
+                populateScenarioDropdown(firstGroup.querySelector('.scenario-select-for-button'), '');
+                firstGroup.querySelector('input[value="addButton"]').checked = true;
+                firstGroup.querySelector('.selector-group').style.display = 'flex';
                 updateRemoveButtonSettingsVisibility();
             });
         });
@@ -619,11 +656,11 @@ document.addEventListener('DOMContentLoaded', () => {
     saveMappingButton.addEventListener('click', saveMapping);
 
     addButtonManually.addEventListener('click', () => {
-        const urls = getAllUrlInputValues(); // Not used for manual add, but for consistency
         const buttonSettings = getAllButtonSettingValues();
+        const settingsToAdd = buttonSettings.filter(s => s.actionType === 'addButton');
 
-        if (buttonSettings.length === 0) {
-            alert('시나리오 버튼 설정을 입력해야 합니다.');
+        if (settingsToAdd.length === 0) {
+            alert('페이지에 추가할 버튼 설정이 없습니다. (자동 실행이 아닌 \"버튼 추가\" 옵션을 선택했는지 확인하세요.)');
             return;
         }
 
@@ -633,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            buttonSettings.forEach(setting => {
+            settingsToAdd.forEach(setting => {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     type: 'MANUAL_ADD_BUTTON',
                     selector: setting.selector,
@@ -641,15 +678,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, (response) => {
                     if (chrome.runtime.lastError) {
                         console.error('Error sending message:', chrome.runtime.lastError.message);
-                        // alert('버튼을 추가할 수 없습니다. 페이지를 새로고침하고 다시 시도해주세요.'); // Avoid multiple alerts
-                    } else if (response && response.status === 'SUCCESS') {
-                        // alert('버튼이 현재 페이지에 추가되었습니다.'); // Avoid multiple alerts
-                    } else {
-                        // alert('버튼 추가 요청에 실패했습니다.'); // Avoid multiple alerts
-                    }
+                    } 
                 });
             });
-            alert(`${buttonSettings.length}개의 버튼이 현재 페이지에 추가되었습니다.`);
+            alert(`${settingsToAdd.length}개의 버튼이 현재 페이지에 추가 요청되었습니다.`);
         });
     });
 
