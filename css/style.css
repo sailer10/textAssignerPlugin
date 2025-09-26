@@ -272,3 +272,12 @@ button.danger:hover {
     opacity: 0.5;
     border: 2px dashed #ccc;
 }
+
+.bottom-buttons-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+.bottom-buttons-container button {
+    flex: 1;
+}

@@ -5,13 +5,13 @@
 </head>
 <body>
     <div class="tab-container">
-        <button id="tab_scenario_tool" class="tab-button active">테스트 시나리오 도구</button>
-        <button id="tab_add_button" class="tab-button">버튼 추가</button>
+        <button id="tab_scenario_tool" class="tab-button active">테스트 시나리오 생성</button>
+        <button id="tab_add_button" class="tab-button">시나리오 매핑</button>
     </div>
 
     <!-- Tab Content: Test Scenario Tool -->
     <div id="content_scenario_tool" class="tab-content active">
-        <h1>테스트 시나리오 도구</h1>
+        <h1>테스트 시나리오 생성</h1>
 
         <!-- Scenario Management -->
         <div class="section-header">
@@ -40,7 +40,7 @@
         <div class="section-header">
             행동 목록
         </div>
-        <button id="run_scenario_btn_top" style="width: 100%; margin-bottom: 15px;">시나리오 실행</button>
+        <button id="run_scenario_btn_top" style="width: 100%; margin-bottom: 15px; display: none;">시나리오 실행</button>
         <div class="action-buttons-top button-group" style="margin-bottom: 15px;">
             <div>
                 <button id="add_action_btn_top">행동 추가</button>
@@ -69,13 +69,14 @@
 
         <!-- Footer -->
         <div class="bottom-buttons-container">
-            <button id="run_scenario_btn_bottom" style="width: 100%; padding: 10px; font-size: 16px;">시나리오 실행</button>
+            <button id="save_scenario_button">시나리오 저장</button>
+            <button id="run_scenario_btn_bottom" >시나리오 실행</button>
         </div>
     </div>
 
     <!-- Tab Content: Add Button -->
     <div id="content_add_button" class="tab-content" style="display: none;">
-        <h1>버튼 추가</h1>
+        <h1>시나리오 매핑</h1>
 
         <div class="section-header">1. 대상 URL 입력</div>
         <div id="url_inputs_container">
