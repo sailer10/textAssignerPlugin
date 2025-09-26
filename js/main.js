@@ -23,8 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- 1. ELEMENT SELECTORS ---
-    const scenariosListContainer = document.getElementById('scenarios_list_container');
-    const runImmediatelyCheckbox = document.getElementById('run_immediately_checkbox');
+    const scenarioSelect = document.getElementById('scenario_select');
+    const addQuickButton = document.getElementById('add_quick_button');
+    const runSelectedScenarioButton = document.getElementById('run_selected_scenario_button');
+    const deleteScenarioButton = document.getElementById('delete_scenario_button');
+    const quickButtonsContainer = document.getElementById('quick_buttons_container');
     const scenarioTitleInput = document.getElementById('setting_title');
     const saveScenarioButton = document.getElementById('save_scenario_button');
     const exportScenarioButton = document.getElementById('export_scenario_button');
@@ -375,42 +378,126 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 4. SCENARIO MANAGEMENT ---
-    const renderScenariosList = () => {
-        scenariosListContainer.innerHTML = '';
-        chrome.storage.local.get('scenarios', (data) => {
-            allScenarios = data.scenarios || {}; // Update global scenarios
-            
-            // Populate the main list
-            for (const title in allScenarios) {
-                const itemContainer = document.createElement('div');
-                itemContainer.className = 'scenario-item';
+    let quickButtonScenarios = [];
+
+    const populateScenarioSelect = (selectedValue = '') => {
+        const currentValue = selectedValue || (scenarioSelect.value !== 'none' ? scenarioSelect.value : '');
+        scenarioSelect.innerHTML = '<option value="none">새 시나리오</option>';
+        for (const title in allScenarios) {
+            const option = document.createElement('option');
+            option.value = title;
+            option.textContent = title;
+            scenarioSelect.appendChild(option);
+        }
+        scenarioSelect.value = allScenarios[currentValue] ? currentValue : 'none';
+
+        // Also refresh the dropdowns in the "Button Adder" tab
+        document.querySelectorAll('.scenario-select-for-button').forEach(dropdown => {
+            populateScenarioDropdown(dropdown, dropdown.value);
+        });
+    };
+
+    const renderQuickButtons = () => {
+        quickButtonsContainer.innerHTML = '';
+        chrome.storage.local.get('quickButtonScenarios', (data) => {
+            quickButtonScenarios = data.quickButtonScenarios || [];
+            quickButtonScenarios.forEach(title => {
+                if (!allScenarios[title]) return; // Skip if scenario doesn't exist
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'quick-button-item';
+
                 const button = document.createElement('button');
                 button.textContent = title;
-                button.className = 'scenario-load-btn';
-                button.addEventListener('click', () => {
-                    if (runImmediatelyCheckbox.checked) { runScenarioByTitle(title, allScenarios[title]); }
-                    else { loadScenarioByTitle(title, allScenarios[title]); }
-                });
+                button.className = 'scenario-run-btn';
+                button.addEventListener('click', () => runScenarioByTitle(title, allScenarios[title]));
+                
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'X';
-                deleteBtn.className = 'scenario-delete-btn';
+                deleteBtn.className = 'quick-button-delete-btn danger';
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (!confirm(`'${title}' 시나리오를 정말 삭제하시겠습니까?`)) return;
-                    delete allScenarios[title];
-                    chrome.storage.local.set({ scenarios: allScenarios }, () => { renderScenariosList(); });
+                    const index = quickButtonScenarios.indexOf(title);
+                    if (index > -1) {
+                        quickButtonScenarios.splice(index, 1);
+                        chrome.storage.local.set({ quickButtonScenarios }, renderQuickButtons);
+                    }
                 });
-                itemContainer.appendChild(button);
-                itemContainer.appendChild(deleteBtn);
-                scenariosListContainer.appendChild(itemContainer);
-            }
 
-            // Populate all dynamic scenario dropdowns
-            document.querySelectorAll('.scenario-select-for-button').forEach(dropdown => {
-                populateScenarioDropdown(dropdown, dropdown.value); // Keep current selection if any
+                buttonContainer.appendChild(button);
+                buttonContainer.appendChild(deleteBtn);
+                quickButtonsContainer.appendChild(buttonContainer);
             });
         });
     };
+    
+    const clearEditor = () => {
+        scenarioTitleInput.value = '';
+        currentActions = [];
+        renderActions();
+        saveState();
+        scenarioSelect.value = 'none';
+    };
+
+    scenarioSelect.addEventListener('change', () => {
+        const selectedTitle = scenarioSelect.value;
+        if (selectedTitle && selectedTitle !== 'none') {
+            loadScenarioByTitle(selectedTitle, allScenarios[selectedTitle]);
+        } else {
+        }
+    });
+
+    runSelectedScenarioButton.addEventListener('click', () => {
+        const selectedTitle = scenarioSelect.value;
+        if (selectedTitle && selectedTitle !== 'none') {
+            runScenarioByTitle(selectedTitle, allScenarios[selectedTitle]);
+        } else {
+            alert('실행할 시나리오를 선택하세요.');
+        }
+    });
+
+    addQuickButton.addEventListener('click', () => {
+        const selectedTitle = scenarioSelect.value;
+        if (selectedTitle && selectedTitle !== 'none') {
+            if (quickButtonScenarios.includes(selectedTitle)) {
+                alert('이미 등록된 Quick Button입니다.');
+                return;
+            }
+            quickButtonScenarios.push(selectedTitle);
+            chrome.storage.local.set({ quickButtonScenarios }, () => {
+                alert(`'${selectedTitle}' 시나리오가 Quick Button으로 등록되었습니다.`);
+                renderQuickButtons();
+            });
+        } else {
+            alert('등록할 시나리오를 선택하세요.');
+        }
+    });
+
+    deleteScenarioButton.addEventListener('click', () => {
+        const selectedTitle = scenarioSelect.value;
+        if (selectedTitle && selectedTitle !== 'none') {
+            if (!confirm(`'${selectedTitle}' 시나리오를 정말 삭제하시겠습니까?`)) return;
+
+            // Delete from main scenarios
+            delete allScenarios[selectedTitle];
+            chrome.storage.local.set({ scenarios: allScenarios }, () => {
+                
+                // Remove from quick buttons if it exists
+                const index = quickButtonScenarios.indexOf(selectedTitle);
+                if (index > -1) {
+                    quickButtonScenarios.splice(index, 1);
+                    chrome.storage.local.set({ quickButtonScenarios });
+                }
+                
+                alert(`'${selectedTitle}' 시나리오가 삭제되었습니다.`);
+                clearEditor();
+                populateScenarioSelect();
+                renderQuickButtons();
+            });
+        } else {
+            alert('삭제할 시나리오를 선택하세요.');
+        }
+    });
 
     const loadScenarioByTitle = (title, actions) => {
         scenarioTitleInput.value = title;
@@ -425,15 +512,20 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.local.get('scenarios', (data) => {
             const scenarios = data.scenarios || {};
             scenarios[title] = currentActions;
-            chrome.storage.local.set({ scenarios }, () => { alert(`시나리오 '${title}'이(가) 저장되었습니다.`); renderScenariosList(); });
+            chrome.storage.local.set({ scenarios }, () => { 
+                alert(`시나리오 '${title}'이(가) 저장되었습니다.`); 
+                allScenarios = scenarios; // Update global object
+                populateScenarioSelect(title); 
+            });
         });
     });
 
     exportScenarioButton.addEventListener('click', () => {
-        chrome.storage.local.get(['scenarios', 'buttonAdderMappings'], (data) => {
+        chrome.storage.local.get(['scenarios', 'buttonAdderMappings', 'quickButtonScenarios'], (data) => {
             const exportData = {
                 scenarios: data.scenarios || {},
-                buttonAdderMappings: data.buttonAdderMappings || {}
+                buttonAdderMappings: data.buttonAdderMappings || [],
+                quickButtonScenarios: data.quickButtonScenarios || []
             };
 
             if (Object.keys(exportData.scenarios).length === 0 && Object.keys(exportData.buttonAdderMappings).length === 0) {
@@ -464,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const importedData = JSON.parse(e.target.result);
                 const importedScenarios = importedData.scenarios || {};
                 const importedMappings = Array.isArray(importedData.buttonAdderMappings) ? importedData.buttonAdderMappings : [];
+                const importedQuickButtons = Array.isArray(importedData.quickButtonScenarios) ? importedData.quickButtonScenarios : [];
 
                 chrome.storage.local.get(['scenarios', 'buttonAdderMappings'], (data) => {
                     const existingScenarios = data.scenarios || {};
@@ -472,10 +565,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     const mergedScenarios = { ...existingScenarios, ...importedScenarios };
                     const mergedMappings = existingMappings.concat(importedMappings);
 
-                    chrome.storage.local.set({ scenarios: mergedScenarios, buttonAdderMappings: mergedMappings }, () => {
-                        alert(`시나리오 ${Object.keys(importedScenarios).length}개, 버튼 매핑 ${importedMappings.length}개를 가져왔습니다.`);
-                        renderScenariosList();
-                        loadButtonAdderMappings(); // Reload mappings to update the view
+                    chrome.storage.local.set({ 
+                        scenarios: mergedScenarios, 
+                        buttonAdderMappings: mergedMappings,
+                        quickButtonScenarios: importedQuickButtons // Overwrite with imported quick buttons
+                    }, () => {
+                        alert(`시나리오 ${Object.keys(importedScenarios).length}개, 매핑 ${importedMappings.length}개, Quick Button ${importedQuickButtons.length}개를 가져왔습니다.`);
+                        allScenarios = mergedScenarios; // Update global object
+                        buttonAdderMappings = mergedMappings;
+                        quickButtonScenarios = importedQuickButtons;
+                        populateScenarioSelect();
+                        renderQuickButtons();
+                        renderUrlList(); // Reload mappings to update the view
                     });
                 });
             } catch (error) {
@@ -689,6 +790,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- 8. INITIALIZATION ---
+    const loadInitialData = () => {
+        chrome.storage.local.get(['scenarios', 'quickButtonScenarios'], (data) => {
+            allScenarios = data.scenarios || {};
+            quickButtonScenarios = data.quickButtonScenarios || [];
+            populateScenarioSelect();
+            renderQuickButtons();
+        });
+    };
+
     const restoreLastTab = () => {
         chrome.storage.session.get(['lastTab'], (result) => {
             if (result.lastTab) {
@@ -700,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    renderScenariosList();
+    loadInitialData();
     restoreState();
     loadButtonAdderMappings();
     restoreLastTab();

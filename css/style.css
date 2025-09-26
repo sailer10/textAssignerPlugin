@@ -115,35 +115,56 @@ button.danger:hover {
     color: #34495e;
 }
 
-/* --- Scenario List Styling --- */
-#scenarios_list_container {
+/* --- Scenario Management & Quick Buttons --- */
+.scenario-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.scenario-controls select {
+    flex: 1;
+}
+.scenario-controls button {
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
+#quick_buttons_container {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    row-gap: 0px;
-    column-gap: 5px;
+    gap: 5px;
+    margin-top: 10px;
 }
-.scenario-item {
+.quick-button-item {
     display: flex;
     align-items: center;
     background-color: #e0e0e0;
     padding: 2px 5px 2px 10px;
     border-radius: 4px;
     width: auto;
+    margin-bottom: 0; /* Override default div margin */
 }
-.scenario-item button.scenario-load-btn {
+.quick-button-item button.scenario-run-btn {
     background: none;
     border: none;
     color: #333;
     padding: 5px;
-    margin: 0px;
+    margin: 0;
     font-size: 14px;
+    font-weight: 500;
 }
-.scenario-item button.scenario-delete-btn {
+.quick-button-item button.scenario-run-btn:hover {
+    background: none; /* Override default hover */
+    color: #000;
+}
+.quick-button-item button.quick-button-delete-btn {
     background-color: #c0c0c0;
     padding: 1px 6px;
     font-size: 12px;
     margin-left: 5px;
+}
+.quick-button-item button.quick-button-delete-btn:hover {
+    background-color: #a0a0a0;
 }
 
 /* --- Action Card Styling --- */
